@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Packaging
+*.deb
+*.rpm
+*.pkg.tar.zst
+pkg/
+src/pkg/
+*.AppImage
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS / logs
+.DS_Store
+*.log
+
+# Local runtime files
+run/
+*.pid
