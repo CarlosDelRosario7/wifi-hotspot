@@ -13,6 +13,10 @@ import pytest
 from wifi_hotspot.errors import CommandError
 from wifi_hotspot.services import process
 
+# The interpreter is called "python" on some CI images and "python3" on most
+# distributions, so derive the expected process name from the running binary.
+PYTHON_BINARY = Path(sys.executable).name
+
 
 def wait_until_dead(pid: int, timeout: float = 5.0) -> bool:
     deadline = time.monotonic() + timeout
@@ -25,10 +29,10 @@ def wait_until_dead(pid: int, timeout: float = 5.0) -> bool:
 
 def test_process_matches_current_process() -> None:
     pid = os.getpid()
-    assert process.process_matches(pid, "python3") is True
-    assert process.process_matches(pid, "python3", Path("/nonexistent/config")) is False
+    assert process.process_matches(pid, PYTHON_BINARY) is True
+    assert process.process_matches(pid, PYTHON_BINARY, Path("/nonexistent/config")) is False
     assert process.process_matches(pid, "not-our-binary") is False
-    assert process.process_matches(999999999, "python3") is False
+    assert process.process_matches(999999999, PYTHON_BINARY) is False
 
 
 @pytest.mark.parametrize("form", ["path", "conf-file", "short-config"])
@@ -45,11 +49,11 @@ def test_process_matches_config_argument_forms(tmp_path: Path, form: str) -> Non
     try:
         deadline = time.monotonic() + 2.0
         while time.monotonic() < deadline:
-            if process.process_matches(child.pid, "python3", config):
+            if process.process_matches(child.pid, PYTHON_BINARY, config):
                 break
             time.sleep(0.01)
-        assert process.process_matches(child.pid, "python3", config) is True
-        assert process.process_matches(child.pid, "python3", other) is False
+        assert process.process_matches(child.pid, PYTHON_BINARY, config) is True
+        assert process.process_matches(child.pid, PYTHON_BINARY, other) is False
         assert process.process_matches(child.pid, "not-our-binary", config) is False
     finally:
         child.terminate()
@@ -94,7 +98,7 @@ def test_start_and_stop_foreground(tmp_path: Path) -> None:
 
     stopped = process.stop_foreground(
         name="test",
-        binary="python3",
+        binary=PYTHON_BINARY,
         pid_file=pid_file,
     )
     assert stopped is True
@@ -133,7 +137,7 @@ def test_stop_foreground_recovers_orphan_from_config_path(tmp_path: Path) -> Non
 
     stopped = process.stop_foreground(
         name="test",
-        binary="python3",
+        binary=PYTHON_BINARY,
         pid_file=pid_file,
         config_path=config,
     )
@@ -158,7 +162,7 @@ def test_stop_foreground_recovers_orphan_from_conf_file_argument(tmp_path: Path)
 
     stopped = process.stop_foreground(
         name="test",
-        binary="python3",
+        binary=PYTHON_BINARY,
         pid_file=pid_file,
         config_path=config,
     )
