@@ -1,0 +1,22 @@
+[Unit]
+Description=WiFi Hotspot privileged daemon
+Documentation=https://github.com/CarlosDelRosario7/wifi-hotspot
+After=network.target NetworkManager.service
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/wifi-hotspotd
+Restart=on-failure
+RestartSec=2s
+RuntimeDirectory=wifi-hotspot
+RuntimeDirectoryMode=0755
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectHome=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=WiFi Hotspot
+GenericName=Wi-Fi Hotspot Manager
+GenericName[es]=Gestor de punto de acceso Wi-Fi
+Comment=Share your internet connection over Wi-Fi
+Comment[es]=Comparte tu conexión a Internet por Wi-Fi
+Exec=wifi-hotspot-gui
+Icon=io.github.carlosdelrosario7.WifiHotspot
+Terminal=false
+Categories=Network;GTK;
+Keywords=wifi;hotspot;access point;router;network;
+Keywords[es]=wifi;punto de acceso;hotspot;router;red;
+StartupNotify=true
+StartupWMClass=io.github.carlosdelrosario7.WifiHotspot

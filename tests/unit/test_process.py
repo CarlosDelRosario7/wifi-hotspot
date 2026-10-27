@@ -43,6 +43,11 @@ def test_process_matches_config_argument_forms(tmp_path: Path, form: str) -> Non
 
     child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)", argument])
     try:
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            if process.process_matches(child.pid, "python3", config):
+                break
+            time.sleep(0.01)
         assert process.process_matches(child.pid, "python3", config) is True
         assert process.process_matches(child.pid, "python3", other) is False
         assert process.process_matches(child.pid, "not-our-binary", config) is False

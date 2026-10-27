@@ -9,7 +9,27 @@ from pathlib import Path
 
 from .errors import ValidationError
 from .models import HotspotConfig
-from .util import PROFILE_NAME_RE, ensure_dir, read_json, remove_file, write_json
+from .util import PROFILE_NAME_RE, ensure_dir, random_password, read_json, remove_file, write_json
+
+OVERRIDE_FIELDS = (
+    "ssid",
+    "password",
+    "band",
+    "channel",
+    "security",
+    "country",
+    "hidden",
+    "max_clients",
+    "client_isolation",
+    "ipv6",
+    "subnet",
+    "dhcp_start",
+    "dhcp_end",
+    "lease_time",
+    "uplink",
+    "ap_interface",
+    "firewall_backend",
+)
 
 
 @dataclass(frozen=True)
@@ -64,6 +84,18 @@ class Paths:
     @property
     def dnsmasq_leases(self) -> Path:
         return self.run_dir / "dnsmasq.leases"
+
+    @property
+    def daemon_socket(self) -> Path:
+        return self.run_dir / "daemon.sock"
+
+    @property
+    def daemon_pid(self) -> Path:
+        return self.run_dir / "daemon.pid"
+
+    @property
+    def daemon_log(self) -> Path:
+        return self.run_dir / "daemon.log"
 
     @property
     def hostapd_ctrl(self) -> Path:
@@ -145,3 +177,38 @@ def default_profile(paths: Paths) -> HotspotConfig:
     if loaded is not None:
         return loaded
     return HotspotConfig()
+
+
+def resolve_config(
+    paths: Paths,
+    profile: str = "default",
+    overrides: dict[str, object] | None = None,
+    *,
+    generate_password: bool = False,
+) -> HotspotConfig:
+    """Load a profile and apply non-None overrides from a client.
+
+    This is shared by the direct CLI and the privileged daemon so both resolve
+    arguments identically. Overrides are deliberately restricted to fields that
+    are safe to change at start time.
+    """
+    stored = load_profile(paths, profile) if profile else None
+    config = stored.copy() if stored is not None else HotspotConfig()
+    config.profile_name = profile or "default"
+    values = overrides or {}
+    for attribute in OVERRIDE_FIELDS:
+        value = values.get(attribute)
+        if value is not None:
+            setattr(config, attribute, value)
+    if values.get("dns") is not None:
+        dns = values.get("dns")
+        if isinstance(dns, (list, tuple)):
+            config.dns = [str(server) for server in dns]
+        else:
+            raise ValidationError("El campo DNS debe ser una lista de direcciones IP.")
+    if generate_password:
+        config.password = random_password()
+    if config.security == "open":
+        config.password = ""
+    config.validate()
+    return config

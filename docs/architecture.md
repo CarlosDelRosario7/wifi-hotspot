@@ -96,8 +96,27 @@ The runtime state intentionally contains no Wi-Fi password.
 
 `wifi-hotspot` exposes `start`, `stop`, `restart`, `status`, `clients`, `doctor`,
 `profiles`, `qr`, and `version`. `--json` makes the output machine-readable.
-`wifi.sh` is a compatibility wrapper for the original script; the original is
-preserved unchanged in `legacy/wifi.sh`.
+When the daemon is running, the CLI uses its socket automatically; `--direct`
+runs the engine in the caller's process (normally with `sudo`), and `--daemon`
+requires the daemon. `wifi.sh` is a compatibility wrapper for the original
+script; the original is preserved unchanged in `legacy/wifi.sh`.
+
+### Daemon
+
+`wifi-hotspotd` listens on `/run/wifi-hotspot/daemon.sock` and speaks one JSON
+object per line. Each connection is handled in a thread and peer credentials
+are read with `SO_PEERCRED`. Unprivileged read methods (`ping`, `status`,
+`clients`, `doctor`, `profiles.list`, `profiles.summary`) are available to any
+local user; mutating methods require uid 0 or a successful polkit check for
+action `io.github.carlosdelrosario7.WifiHotspot.manage`. The systemd unit keeps
+the daemon running and recreates `/run/wifi-hotspot` on boot.
+
+### GUI
+
+`wifi-hotspot-gui` is a GTK4 + Libadwaita client. All privileged operations go
+through `DaemonClient`; the GUI never runs as root. It polls status and clients
+on a timer and performs RPC calls in worker threads so the interface stays
+responsive during polkit prompts or slow network operations.
 
 ## Networking details
 
@@ -148,27 +167,31 @@ rejected as a command-line error.
 ## Security model
 
 - The direct CLI uses the caller's `sudo`/`pkexec` privileges.
-- The planned daemon listens on a Unix socket, authenticates the peer UID, and
-  authorizes privileged actions through polkit.
+- The daemon listens on a Unix socket, authenticates the peer with
+  `SO_PEERCRED`, and authorizes privileged actions through polkit.
+- Root-owned profiles are mode `0600`; runtime state omits passwords.
+- Logs are mode `0600` and contain no passwords.
 - No telemetry and no outbound connections other than the configured DNS
   servers.
-- Profiles are root-owned, mode `0600`; runtime state omits passwords.
-- Logs are mode `0600` and contain no passwords.
 
 ## Packaging
 
-- **Debian/Ubuntu/Kali:** `packaging/debian` with `debhelper` and `dh-python`.
+- **Debian/Ubuntu/Kali:** `packaging/deb` builds a binary `.deb` with
+  maintainer scripts that enable the systemd unit.
 - **Fedora/openSUSE:** `packaging/rpm/wifi-hotspot.spec`.
 - **Arch:** `packaging/arch/PKGBUILD`.
+- **AppImage:** `packaging/appimage` bundles the Python code and front ends; GTK,
+  Libadwaita, PyGObject, and the privileged daemon remain system packages.
 - **Development:** `pip install .` or `pipx install .`.
 
 System integration assets live in `data/`: desktop entry, AppStream metadata,
-icons, polkit policy, and systemd unit.
+icon, polkit policy, and systemd unit. `make check-version` ensures all package
+metadata and the changelog use the same version.
 
 ## Roadmap
 
 1. Core CLI and real-hardware validation (done for AP+STA on Kali).
-2. Root daemon with a Unix socket and polkit.
-3. GTK4/Libadwaita GUI and tray integration.
-4. Native packaging and distribution testing.
-5. Translations and hardware compatibility database.
+2. Root daemon with a Unix socket and polkit (done).
+3. GTK4/Libadwaita GUI (done; tray integration pending).
+4. Native packaging and distribution testing (done; wider distro testing pending).
+5. Translations, autostart, traffic history, and hardware compatibility database.

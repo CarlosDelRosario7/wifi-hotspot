@@ -42,6 +42,8 @@ Changelog = "https://github.com/CarlosDelRosario7/wifi-hotspot/blob/main/CHANGEL
 
 [project.scripts]
 wifi-hotspot = "wifi_hotspot.cli:main"
+wifi-hotspotd = "wifi_hotspot.daemon:main"
+wifi-hotspot-gui = "wifi_hotspot.gui.app:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
@@ -49,14 +51,6 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.package-data]
-wifi_hotspot = [
-  "gui/ui/*.ui",
-  "gui/resources/*",
-  "gui/resources/**/*",
-  "data/*",
-]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -1,0 +1,20 @@
+#!/bin/sh
+# AppImage entry point. The GUI is the default; arguments are passed to the CLI.
+set -eu
+
+APPDIR=$(cd -- "$(dirname -- "$0")" && pwd)
+export APPDIR
+export PYTHONPATH="$APPDIR/usr/lib/wifi-hotspot${PYTHONPATH:+:$PYTHONPATH}"
+export XDG_DATA_DIRS="$APPDIR/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+PYTHON=${WIFI_HOTSPOT_PYTHON:-python3}
+
+if [ "${1:-}" = "--gui" ]; then
+    shift
+    exec "$PYTHON" -m wifi_hotspot.gui.app
+fi
+
+if [ "$#" -gt 0 ]; then
+    exec "$PYTHON" -m wifi_hotspot "$@"
+fi
+
+exec "$PYTHON" -m wifi_hotspot.gui.app

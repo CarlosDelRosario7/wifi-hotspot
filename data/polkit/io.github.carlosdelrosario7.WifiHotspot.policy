@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>WiFi Hotspot</vendor>
+  <vendor_url>https://github.com/CarlosDelRosario7/wifi-hotspot</vendor_url>
+  <icon_name>io.github.carlosdelrosario7.WifiHotspot</icon_name>
+
+  <action id="io.github.carlosdelrosario7.WifiHotspot.manage">
+    <description>Manage the Wi-Fi hotspot</description>
+    <description xml:lang="es">Gestionar el punto de acceso Wi-Fi</description>
+    <message>Authentication is required to start, stop, or change the Wi-Fi hotspot</message>
+    <message xml:lang="es">Se requiere autenticación para iniciar, detener o cambiar el punto de acceso Wi-Fi</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+</policyconfig>

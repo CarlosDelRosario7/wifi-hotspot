@@ -74,9 +74,10 @@ docs: document firewalld backend limitations
 
 ## Translations
 
-The GUI uses gettext. Spanish and English are the initial languages. Do not
-translate technical identifiers such as command names, interface names, or
-firewall backends.
+The GUI is currently written in Spanish and the READMEs are maintained in
+Spanish and English. A gettext-based translation layer for the GUI and
+additional languages are planned; keep technical identifiers such as command
+names, interface names, and firewall backends untranslated.
 
 ## License
 

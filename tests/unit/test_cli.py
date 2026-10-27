@@ -121,6 +121,15 @@ def test_main_status_json(
     assert data["status"] == "stopped"
 
 
+def test_main_accepts_global_json_after_command(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli, "DEFAULT_PATHS", paths)
+    assert cli.main(["status", "--json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["status"] == "stopped"
+
+
 def test_main_profiles(
     paths: Paths, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

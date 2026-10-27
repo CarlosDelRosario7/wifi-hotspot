@@ -14,6 +14,7 @@ from wifi_hotspot.config import (
     delete_profile,
     list_profiles,
     load_profile,
+    resolve_config,
     save_profile,
 )
 from wifi_hotspot.errors import ValidationError
@@ -130,3 +131,49 @@ def test_cleanup_runtime_files_removes_control_directory(paths: Paths) -> None:
 
     assert not paths.hostapd_ctrl.exists()
     assert not paths.dnsmasq_conf.exists()
+
+
+def test_resolve_config_merges_profile_and_overrides(paths: Paths) -> None:
+    save_profile(
+        paths,
+        HotspotConfig(
+            profile_name="cafe",
+            ssid="CafeNet",
+            password="Password123",
+            band="2.4",
+            channel=6,
+            country="ES",
+        ),
+    )
+    config = resolve_config(
+        paths,
+        "cafe",
+        {"ssid": "NewName", "channel": 11, "dns": ["9.9.9.9"]},
+    )
+    assert config.profile_name == "cafe"
+    assert config.ssid == "NewName"
+    assert config.channel == 11
+    assert config.dns == ["9.9.9.9"]
+    assert config.country == "ES"
+
+
+def test_resolve_config_generates_password(paths: Paths) -> None:
+    config = resolve_config(paths, "new", {"ssid": "NewNet"}, generate_password=True)
+    assert len(config.password) >= 16
+
+
+def test_resolve_config_open_network_clears_password(paths: Paths) -> None:
+    config = resolve_config(
+        paths,
+        "open",
+        {"ssid": "OpenNet", "security": "open", "password": "Password123"},
+    )
+    assert config.password == ""
+    assert config.is_open is True
+
+
+def test_resolve_config_rejects_invalid_dns(paths: Paths) -> None:
+    with pytest.raises(ValidationError, match="lista"):
+        resolve_config(paths, "default", {"ssid": "Net", "dns": "1.1.1.1"})
+    with pytest.raises(ValidationError, match="DNS"):
+        resolve_config(paths, "default", {"ssid": "Net", "dns": ["not-an-ip"]})

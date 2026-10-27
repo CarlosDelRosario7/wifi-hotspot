@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.carlosdelrosario7.WifiHotspot</id>
+  <name>WiFi Hotspot</name>
+  <summary>Share your internet connection over Wi-Fi</summary>
+  <summary xml:lang="es">Comparte tu conexión a Internet por Wi-Fi</summary>
+  <developer id="io.github.carlosdelrosario7">
+    <name>Carlos Del Rosario</name>
+  </developer>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <description>
+    <p>
+      WiFi Hotspot turns a Linux computer into a Wi-Fi access point. It supports
+      Ethernet uplinks, concurrent AP+STA operation on a single card, and two
+      wireless cards.
+    </p>
+    <p>
+      Manage SSID, password, security, band, channel, country, DHCP, DNS, and
+      firewall settings from a GTK4 interface or the command line. Connected
+      clients, traffic counters, QR sharing, and saved profiles are built in.
+    </p>
+    <p xml:lang="es">
+      WiFi Hotspot convierte un equipo Linux en un punto de acceso Wi-Fi. Soporta
+      salida por Ethernet, AP+STA simultáneos en una sola tarjeta y dos tarjetas
+      inalámbricas.
+    </p>
+    <p xml:lang="es">
+      Gestiona SSID, contraseña, seguridad, banda, canal, país, DHCP, DNS y
+      firewall desde una interfaz GTK4 o la línea de comandos. Incluye clientes
+      conectados, contadores de tráfico, QR para compartir y perfiles guardados.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.carlosdelrosario7.WifiHotspot.desktop</launchable>
+  <url type="homepage">https://github.com/CarlosDelRosario7/wifi-hotspot</url>
+  <url type="bugtracker">https://github.com/CarlosDelRosario7/wifi-hotspot/issues</url>
+  <url type="vcs-browser">https://github.com/CarlosDelRosario7/wifi-hotspot</url>
+  <provides>
+    <binary>wifi-hotspot-gui</binary>
+    <binary>wifi-hotspot</binary>
+    <binary>wifi-hotspotd</binary>
+  </provides>
+  <categories>
+    <category>Network</category>
+    <category>Settings</category>
+  </categories>
+  <keywords>
+    <keyword>wifi</keyword>
+    <keyword>hotspot</keyword>
+    <keyword>access point</keyword>
+    <keyword>router</keyword>
+    <keyword>network</keyword>
+  </keywords>
+  <content_rating type="oars-1.1"/>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Manage the hotspot and see connected clients</caption>
+      <caption xml:lang="es">Gestiona el hotspot y consulta los clientes conectados</caption>
+      <image type="source">https://raw.githubusercontent.com/CarlosDelRosario7/wifi-hotspot/main/data/screenshots/wifi-hotspot.png</image>
+    </screenshot>
+  </screenshots>
+  <releases>
+    <release version="0.1.0" date="2026-10-26">
+      <description>
+        <p>First public release with the CLI, root daemon, GTK4 interface, and packages.</p>
+      </description>
+    </release>
+  </releases>
+</component>

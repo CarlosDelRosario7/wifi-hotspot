@@ -1,0 +1,20 @@
+Package: wifi-hotspot
+Version: @VERSION@
+Section: net
+Priority: optional
+Architecture: all
+Installed-Size: @SIZE@
+Depends: python3 (>= 3.10), hostapd, dnsmasq-base | dnsmasq, iw, iproute2, nftables | iptables, qrencode, pkexec | policykit-1
+Recommends: python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1
+Suggests: firewalld, network-manager
+Maintainer: Carlos Del Rosario <65183782+CarlosDelRosario7@users.noreply.github.com>
+Homepage: https://github.com/CarlosDelRosario7/wifi-hotspot
+Description: modern Wi-Fi hotspot manager for Linux
+ WiFi Hotspot turns a Linux computer into a Wi-Fi access point. It supports
+ Ethernet uplinks, concurrent AP+STA operation on one radio, and two wireless
+ cards.
+ .
+ It provides a command-line interface, a small privileged daemon protected by
+ polkit and a Unix socket, and a GTK4/Libadwaita interface. SSID, password,
+ security, band, channel, country, DHCP, DNS, firewall, client list, traffic
+ counters, QR sharing and profiles are configurable.

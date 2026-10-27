@@ -17,6 +17,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
+LEGACY_SCRIPT="${SCRIPT_DIR}/legacy/wifi.sh"
 
 usage() {
     cat <<EOF
@@ -29,9 +30,16 @@ Uso:
   $0 status
   $0 clients | doctor | profiles | qr | version
 
-El script original sigue disponible en:
-  sudo $SCRIPT_DIR/legacy/wifi.sh start "SSID" "Contraseña"
+El comando principal es wifi-hotspot. Este wrapper mantiene la interfaz
+original de wifi.sh.
 EOF
+    if [[ -x "$LEGACY_SCRIPT" ]]; then
+        cat <<EOF
+
+El script original sigue disponible en:
+  sudo $LEGACY_SCRIPT start "SSID" "Contraseña"
+EOF
+    fi
 }
 
 # Prefer the installed command. Fall back to the source tree so the wrapper

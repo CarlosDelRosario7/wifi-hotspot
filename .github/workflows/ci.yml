@@ -34,7 +34,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck
-          shellcheck scripts/*.sh wifi.sh
+          make lint
 
   test:
     name: Test (Python ${{ matrix.python }})

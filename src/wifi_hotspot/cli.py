@@ -6,12 +6,14 @@ import argparse
 import json
 import logging
 import sys
+from types import SimpleNamespace
 from typing import Any
 
 from . import APP_NAME, __version__
-from .config import Paths, default_profile, load_profile
+from .config import OVERRIDE_FIELDS, Paths, default_profile, load_profile
+from .daemon_client import DaemonClient, DaemonError, DaemonUnavailable
 from .engine import HotspotEngine
-from .errors import HotspotError, ValidationError
+from .errors import HotspotError, StateError, ValidationError
 from .models import HotspotConfig
 from .qr import wifi_qr_payload
 from .util import command_exists, format_bytes, format_duration, random_password, run
@@ -19,6 +21,24 @@ from .util import command_exists, format_bytes, format_duration, random_password
 log = logging.getLogger(__name__)
 
 DEFAULT_PATHS = Paths()
+GLOBAL_OPTIONS = frozenset({"--json", "-v", "--verbose", "--daemon", "--direct"})
+
+
+def _hoist_global_options(arguments: list[str]) -> list[str]:
+    """Accept global flags before or after the subcommand.
+
+    argparse only recognizes top-level options before the subcommand. Users
+    naturally write ``wifi-hotspot doctor --json``, so move known global flags
+    to the front before parsing. Flags with values are not affected.
+    """
+    flags: list[str] = []
+    rest: list[str] = []
+    for argument in arguments:
+        if argument in GLOBAL_OPTIONS:
+            flags.append(argument)
+        else:
+            rest.append(argument)
+    return flags + rest
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -30,6 +50,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"{APP_NAME} {__version__}")
     parser.add_argument("-v", "--verbose", action="store_true", help="Mostrar logs de depuración")
     parser.add_argument("--json", action="store_true", help="Salida JSON legible por máquinas")
+    daemon_group = parser.add_mutually_exclusive_group()
+    daemon_group.add_argument(
+        "--daemon",
+        action="store_true",
+        help="Usar el daemon aunque no se detecte automáticamente",
+    )
+    daemon_group.add_argument(
+        "--direct",
+        action="store_true",
+        help="No usar el daemon; ejecutar el motor directamente",
+    )
 
     config_parent = argparse.ArgumentParser(add_help=False)
     config_parent.add_argument("--profile", default="default", help="Nombre del perfil")
@@ -81,6 +112,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("doctor", help="Diagnosticar el sistema y el hardware")
     subparsers.add_parser("qr", help="Mostrar el QR del perfil guardado")
     subparsers.add_parser("profiles", help="Listar los perfiles guardados")
+    subparsers.add_parser("gui", help="Abrir la interfaz gráfica GTK4")
     subparsers.add_parser("version", help="Mostrar la versión")
 
     return parser
@@ -126,6 +158,40 @@ def _resolve_config(args: argparse.Namespace, paths: Paths = DEFAULT_PATHS) -> H
         config.password = ""
     config.validate()
     return config
+
+
+def _overrides_from_args(args: argparse.Namespace) -> dict[str, Any]:
+    """Fields to send to the daemon; profile loading stays on the root side."""
+    values: dict[str, Any] = {}
+    ssid = args.ssid_option or args.ssid_positional
+    if ssid:
+        values["ssid"] = ssid
+    password = args.password_option or args.password_positional
+    if password is not None:
+        values["password"] = password
+    for attribute in OVERRIDE_FIELDS:
+        if attribute in {"ssid", "password"}:
+            continue
+        value = getattr(args, attribute, None)
+        if value is not None:
+            values[attribute] = value
+    if args.dns is not None:
+        values["dns"] = list(args.dns)
+    return values
+
+
+def _daemon_client(args: argparse.Namespace, paths: Paths) -> DaemonClient | None:
+    if getattr(args, "direct", False):
+        return None
+    client = DaemonClient(paths)
+    if client.available():
+        return client
+    if getattr(args, "daemon", False):
+        raise StateError(
+            "El daemon de WiFi Hotspot no está disponible. "
+            "Inícialo con: sudo systemctl start wifi-hotspotd"
+        )
+    return None
 
 
 def _print_start(state: Any, config: HotspotConfig) -> None:
@@ -254,10 +320,10 @@ def _print_doctor(data: dict[str, Any]) -> None:
     print()
 
 
-def _print_profiles(paths: Paths) -> None:
+def _print_profiles(paths: Paths, client: DaemonClient | None = None) -> None:
     from .config import list_profiles
 
-    profiles = list_profiles(paths)
+    profiles = client.list_profiles() if client is not None else list_profiles(paths)
     if not profiles:
         print("No hay perfiles guardados.")
         return
@@ -277,7 +343,8 @@ def _print_qr(config: HotspotConfig) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
-    args = parser.parse_args(argv)
+    raw_arguments = list(sys.argv[1:] if argv is None else argv)
+    args = parser.parse_args(_hoist_global_options(raw_arguments))
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(levelname)s: %(message)s",
@@ -291,9 +358,19 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "start":
-            config = _resolve_config(args, paths)
-            engine = HotspotEngine(config, paths)
-            state = engine.start()
+            client = _daemon_client(args, paths)
+            if client is not None:
+                result = client.start(
+                    args.profile or "default",
+                    _overrides_from_args(args),
+                    generate_password=args.generate_password,
+                )
+                state = SimpleNamespace(**result["state"])
+                config = HotspotConfig.from_dict(result["config"])
+            else:
+                config = _resolve_config(args, paths)
+                engine = HotspotEngine(config, paths)
+                state = engine.start()
             if args.json:
                 payload = state.public_dict()
                 payload["password"] = config.password
@@ -303,8 +380,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "stop":
-            engine = HotspotEngine(HotspotConfig(), paths)
-            stopped = engine.stop()
+            client = _daemon_client(args, paths)
+            if client is not None:
+                stopped = client.stop()
+            else:
+                engine = HotspotEngine(HotspotConfig(), paths)
+                stopped = engine.stop()
             if args.json:
                 print(json.dumps({"stopped": stopped}, indent=2))
             else:
@@ -312,9 +393,19 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "restart":
-            config = _resolve_config(args, paths)
-            engine = HotspotEngine(config, paths)
-            state = engine.restart()
+            client = _daemon_client(args, paths)
+            if client is not None:
+                result = client.restart(
+                    args.profile or "default",
+                    _overrides_from_args(args),
+                    generate_password=args.generate_password,
+                )
+                state = SimpleNamespace(**result["state"])
+                config = HotspotConfig.from_dict(result["config"])
+            else:
+                config = _resolve_config(args, paths)
+                engine = HotspotEngine(config, paths)
+                state = engine.restart()
             if args.json:
                 print(json.dumps(state.public_dict(), indent=2, ensure_ascii=False))
             else:
@@ -322,8 +413,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "status":
-            engine = HotspotEngine(default_profile(paths), paths)
-            data = engine.status()
+            client = _daemon_client(args, paths)
+            if client is not None:
+                data = client.status()
+            else:
+                engine = HotspotEngine(default_profile(paths), paths)
+                data = engine.status()
             if args.json:
                 print(json.dumps(data, indent=2, ensure_ascii=False))
             else:
@@ -331,8 +426,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "clients":
-            engine = HotspotEngine(default_profile(paths), paths)
-            clients = engine.clients()
+            client = _daemon_client(args, paths)
+            if client is not None:
+                clients = client.clients()
+            else:
+                engine = HotspotEngine(default_profile(paths), paths)
+                clients = engine.clients()
             if args.json:
                 print(json.dumps(clients, indent=2, ensure_ascii=False))
             else:
@@ -340,8 +439,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "doctor":
-            engine = HotspotEngine(default_profile(paths), paths)
-            data = engine.doctor()
+            client = _daemon_client(args, paths)
+            if client is not None:
+                data = client.doctor()
+            else:
+                engine = HotspotEngine(default_profile(paths), paths)
+                data = engine.doctor()
             if args.json:
                 print(json.dumps(data, indent=2, ensure_ascii=False, default=str))
             else:
@@ -349,13 +452,22 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "profiles":
-            _print_profiles(paths)
+            _print_profiles(paths, _daemon_client(args, paths))
             return 0
 
         if args.command == "qr":
-            config = load_profile(paths, args.profile or "default") or default_profile(paths)
+            client = _daemon_client(args, paths)
+            if client is not None:
+                config = HotspotConfig.from_dict(client.get_profile(args.profile or "default"))
+            else:
+                config = load_profile(paths, args.profile or "default") or default_profile(paths)
             _print_qr(config)
             return 0
+
+        if args.command == "gui":
+            from .gui.app import main as gui_main
+
+            return gui_main([sys.argv[0]])
 
         parser.print_help()
         return 1
@@ -365,6 +477,12 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"Error: {exc}", file=sys.stderr)
         return exc.exit_code
+    except (DaemonUnavailable, DaemonError) as exc:
+        if args.json:
+            print(json.dumps({"error": str(exc)}, indent=2, ensure_ascii=False))
+        else:
+            print(f"Error: {exc}", file=sys.stderr)
+        return 1
     except KeyboardInterrupt:
         print("\nInterrumpido.", file=sys.stderr)
         return 130

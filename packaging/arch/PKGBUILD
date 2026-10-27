@@ -1,0 +1,51 @@
+# Maintainer: Carlos Del Rosario <65183782+CarlosDelRosario7@users.noreply.github.com>
+# shellcheck disable=SC2034,SC2154,SC2164
+pkgname=wifi-hotspot
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Modern Linux Wi-Fi hotspot manager with a GTK4 interface and root daemon"
+arch=('any')
+url="https://github.com/CarlosDelRosario7/wifi-hotspot"
+license=('GPL-3.0-or-later')
+depends=('python' 'hostapd' 'dnsmasq' 'iw' 'iproute2' 'nftables' 'qrencode' 'polkit')
+makedepends=('git')
+optdepends=(
+    'python-gobject: GTK4 graphical interface'
+    'gtk4: GTK4 graphical interface'
+    'libadwaita: GTK4 graphical interface'
+    'networkmanager: NetworkManager integration'
+    'firewalld: firewalld firewall backend'
+)
+source=("git+https://github.com/CarlosDelRosario7/wifi-hotspot.git#tag=v$pkgver")
+sha256sums=('SKIP')
+
+package() {
+    cd "$srcdir/wifi-hotspot"
+
+    install -d "$pkgdir/usr/lib/wifi-hotspot"
+    cp -a src/wifi_hotspot "$pkgdir/usr/lib/wifi-hotspot/"
+    find "$pkgdir/usr/lib/wifi-hotspot" -type d -name __pycache__ -prune -exec rm -rf {} +
+    find "$pkgdir/usr/lib/wifi-hotspot" -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
+    chmod -R u+rwX,go+rX,go-w "$pkgdir/usr/lib/wifi-hotspot"
+
+    install -Dm755 packaging/common/wifi-hotspot "$pkgdir/usr/bin/wifi-hotspot"
+    install -Dm755 packaging/common/wifi-hotspotd "$pkgdir/usr/bin/wifi-hotspotd"
+    install -Dm755 packaging/common/wifi-hotspot-gui "$pkgdir/usr/bin/wifi-hotspot-gui"
+    install -Dm755 wifi.sh "$pkgdir/usr/bin/wifi.sh"
+
+    install -Dm644 data/desktop/io.github.carlosdelrosario7.WifiHotspot.desktop \
+        "$pkgdir/usr/share/applications/io.github.carlosdelrosario7.WifiHotspot.desktop"
+    install -Dm644 data/icons/hicolor/scalable/apps/io.github.carlosdelrosario7.WifiHotspot.svg \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/io.github.carlosdelrosario7.WifiHotspot.svg"
+    install -Dm644 data/metainfo/io.github.carlosdelrosario7.WifiHotspot.metainfo.xml \
+        "$pkgdir/usr/share/metainfo/io.github.carlosdelrosario7.WifiHotspot.metainfo.xml"
+    install -Dm644 data/polkit/io.github.carlosdelrosario7.WifiHotspot.policy \
+        "$pkgdir/usr/share/polkit-1/actions/io.github.carlosdelrosario7.WifiHotspot.policy"
+    install -Dm644 data/systemd/wifi-hotspotd.service \
+        "$pkgdir/usr/lib/systemd/system/wifi-hotspotd.service"
+
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+    install -Dm644 README.en.md "$pkgdir/usr/share/doc/$pkgname/README.en.md"
+    install -Dm644 CHANGELOG.md "$pkgdir/usr/share/doc/$pkgname/CHANGELOG.md"
+}
